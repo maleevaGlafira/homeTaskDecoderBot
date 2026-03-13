@@ -145,6 +145,9 @@ bot.action("recognize", async (ctx) => {
   }
 });
 
+bot.hears("🔄 Перезапустити бота", handleRestart);
+bot.command("restart", handleRestart);
+
 bot.on("text", async (ctx) => {
   const session = getSession(ctx.chat.id);
   const replyTo = ctx.message?.reply_to_message?.message_id;
@@ -175,8 +178,7 @@ bot.action("generate_pdf", async (ctx) => {
   }
 });
 
-bot.hears("🔄 Перезапустити бота", handleRestart);
-bot.command("restart", handleRestart);
+
 
 function handleRestart(ctx) {
   sessions[ctx.chat.id] = { photos: [] };
