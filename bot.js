@@ -262,6 +262,16 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
+// ----------Models api check
+async function checkModels() {
+  try {
+    const result = await genAI.listModels();
+    console.log("Доступные модели:", result.models.map(m => m.name));
+  } catch (e) {
+    console.error("Не удалось получить список моделей:", e);
+  }
+}
+checkModels();
 
 // ─── Запуск ───────────────────────────────────────────────────────────────────
 ensureFont()
