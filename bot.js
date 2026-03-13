@@ -8,6 +8,10 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
+const https = require("https");
+
+
+
 // ─── Прокси ───────────────────────────────────────────────────────────────────
 const PROXY_URL = process.env.HTTPS_PROXY || "";
 
@@ -37,6 +41,28 @@ bot.telegram.getMe()
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// ─── Шрифт ─────────────────────────────────────────────────────────
+async function ensureFont() {
+  const fontDir = path.join(__dirname, "fonts");
+  const fontPath = path.join(fontDir, "DejaVuSans.ttf");
+
+  if (fs.existsSync(fontPath)) return;
+
+  fs.mkdirSync(fontDir, { recursive: true });
+  process.stdout.write("⬇️ Завантажую шрифт...\n");
+
+  const url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf";
+
+  await new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(fontPath);
+    https.get(url, (res) => {
+      res.pipe(file);
+      file.on("finish", () => { file.close(); resolve(); });
+    }).on("error", reject);
+  });
+
+  process.stdout.write("✅ Шрифт завантажено!\n");
+}
 
 // ─── Хранилище сессий ─────────────────────────────────────────────────────────
 // { chatId: { photos: [], messageId?, recognizedText? } }
@@ -238,7 +264,12 @@ function escapeHtml(str) {
 }
 
 // ─── Запуск ───────────────────────────────────────────────────────────────────
-bot.launch().then(() => {
+ensureFont()
+  .then(() => bot.telegram.getMe())
+  .then((info) => {
+    process.stdout.write(`✅ Бот: @${info.username}\n`);
+    return bot.launch();
+  }).then(() => {
 	process.stdout.write("✅ Запуск бота...\n");
   console.log("✅ Бот запущено!");
   if (PROXY_URL) console.log(`🌐 Проксі: ${PROXY_URL}`);
