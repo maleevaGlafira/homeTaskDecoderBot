@@ -1,7 +1,7 @@
 require("dotenv").config();
 process.stdout._handle?.setBlocking?.(true);
 const { Telegraf, Markup } = require("telegraf");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 const axios = require("axios");
 const PDFDocument = require("pdfkit");
@@ -39,8 +39,8 @@ bot.telegram.getMe()
     process.exit(1);
   });
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: "v1" });
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
 // ─── Шрифт ─────────────────────────────────────────────────────────
 async function ensureFont() {
   const fontDir = path.join(__dirname, "fonts");
@@ -86,18 +86,27 @@ async function downloadFile(fileId) {
 
 // ─── Распознавание через Gemini ───────────────────────────────────────────────
 async function recognizeHomework(photoBuffers) {
-  const parts = photoBuffers.map((buf) => ({
-    inlineData: { mimeType: "image/jpeg", data: buf.toString("base64") },
+  const imageParts = photoBuffers.map((buf) => ({
+    inlineData: {
+      mimeType: "image/jpeg",
+      data: buf.toString("base64"),
+    },
   }));
 
-  parts.push({
-    text:
-      "Распозай текст на фото сохрани нумерацию . Верни текст с нумерацией"
+  const response = await genAI.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          ...imageParts,
+          {
+            text: "Analyze this photo of handwritten math homework. Return plain text",
+          },
+        ],
+      },
+    ],
   });
-
-  const result = await model.generateContent(parts);
-  return result.response.text().trim();
-}
 
 // ─── Генерация PDF ────────────────────────────────────────────────────────────
 function generatePDF(text) {
@@ -131,11 +140,18 @@ function generatePDF(text) {
 }
 
 // ─── /start ───────────────────────────────────────────────────────────────────
+
+// Постійне меню (з'являється під полем вводу)
+const mainMenu = Markup.keyboard([
+  ["🔄 Перезапустити бота"]
+]).resize();
+
 bot.start((ctx) => {
   sessions[ctx.chat.id] = { photos: [] };
-  ctx.reply(
+   ctx.reply(
     "👋 Привіт! Надішли 1 або 2 фото з домашнім завданням.\n" +
-      "Потім натисни кнопку 🔍 Розпізнати текст."
+      "Потім натисни кнопку 🔍 Розпізнати текст.",
+    mainMenu
   );
 });
 
